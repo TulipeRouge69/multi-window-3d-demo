@@ -128,12 +128,17 @@ else
 			c.setHSL(i * .1, 1.0, .5);
 
 			let s = 100 + i * 50;
-			let cube = new t.Mesh(new t.BoxGeometry(s, s, s), new t.MeshBasicMaterial({color: c , wireframe: true}));
-			cube.position.x = win.shape.x + (win.shape.w * .5);
-			cube.position.y = win.shape.y + (win.shape.h * .5);
+			let sphere = new t.Mesh(
+  new t.SphereGeometry(s * 0.5, 32, 32),
+  new t.MeshBasicMaterial({ color: c, wireframe: true })
+);
 
-			world.add(cube);
-			cubes.push(cube);
+			sphere.position.x = win.shape.x + (win.shape.w * .5);
+sphere.position.y = win.shape.y + (win.shape.h * .5);
+
+world.add(sphere);
+cubes.push(sphere);
+
 		}
 	}
 
