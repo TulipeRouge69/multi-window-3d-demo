@@ -180,8 +180,8 @@ cubes.push(sphere);
 
 			cube.position.x = cube.position.x + (posTarget.x - cube.position.x) * falloff;
 			cube.position.y = cube.position.y + (posTarget.y - cube.position.y) * falloff;
-			cube.rotation.x = _t * .5;
-			cube.rotation.y = _t * .3;
+			sphere.position.z = Math.sin(_t + i) * 20;
+
 		};
 
 		renderer.render(scene, camera);
