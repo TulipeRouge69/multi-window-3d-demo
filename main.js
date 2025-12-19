@@ -129,7 +129,7 @@ else
 
 			let s = 100 + i * 50;
 			let sphere = new t.Mesh(
-  new t.SphereGeometry(s * 0.5, 32, 32),
+  new t.SphereGeometry(s * 0.5, 8, 6),
   new t.MeshBasicMaterial({ color: c, wireframe: true })
 );
 
