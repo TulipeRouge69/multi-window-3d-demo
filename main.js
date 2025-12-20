@@ -1,5 +1,7 @@
 import WindowManager from './WindowManager.js';
 
+let linkLine = null;
+
 const t = THREE;
 
 let camera, scene, renderer, world;
