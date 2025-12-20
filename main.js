@@ -109,66 +109,61 @@ else
 		updateNumberOfCubes();
 	}
 
-	function updateNumberOfCubes ()
+function updateNumberOfCubes ()
+{
+	let wins = windowManager.getWindows();
+
+	// remove all spheres
+	cubes.forEach(c => world.remove(c));
+	cubes = [];
+
+	// remove all lines
+	lines.forEach(l => world.remove(l.line));
+	lines = [];
+
+	// create spheres
+	for (let i = 0; i < wins.length; i++)
 	{
-		let wins = windowManager.getWindows();
+		let win = wins[i];
 
-		// remove all cubes
-		cubes.forEach((c) => {
-			world.remove(c);
-		})
+		let c = new t.Color();
+		c.setHSL(i * .1, 1.0, .5);
 
-		cubes = [];
-        // remove all lines
-        lines.forEach(l => world.remove(l.line ?? l));
-        lines = [];
+		let s = 100 + i * 50;
+		let sphere = new t.Mesh(
+			new t.SphereGeometry(s * 0.5, 8, 6),
+			new t.MeshBasicMaterial({ color: c, wireframe: true })
+		);
 
-		// add new cubes based on the current window setup
-		for (let i = 0; i < wins.length; i++)
-		{
-			let win = wins[i];
+		sphere.position.x = win.shape.x + (win.shape.w * .5);
+		sphere.position.y = win.shape.y + (win.shape.h * .5);
 
-			let c = new t.Color();
-			c.setHSL(i * .1, 1.0, .5);
+		world.add(sphere);
+		cubes.push(sphere);
+	}
 
-			let s = 100 + i * 50;
-			let sphere = new t.Mesh(
-  new t.SphereGeometry(s * 0.5, 8, 6),
-  new t.MeshBasicMaterial({ color: c, wireframe: true })
-);
+	// ✅ CREATE LINES (ICI, PAS AILLEURS)
+	for (let i = 0; i < cubes.length; i++) {
+		for (let j = i + 1; j < cubes.length; j++) {
 
-			sphere.position.x = win.shape.x + (win.shape.w * .5);
-sphere.position.y = win.shape.y + (win.shape.h * .5);
+			const geometry = new t.BufferGeometry().setFromPoints([
+				cubes[i].position.clone(),
+				cubes[j].position.clone()
+			]);
 
-world.add(sphere);
-cubes.push(sphere);
+			const material = new t.LineBasicMaterial({
+				color: 0xffffff,
+				opacity: 0.4,
+				transparent: true
+			});
 
+			const line = new t.Line(geometry, material);
+			world.add(line);
+
+			lines.push({ line, i, j });
 		}
 	}
-// create lines between each sphere
-for (let i = 0; i < cubes.length; i++) {
-	for (let j = i + 1; j < cubes.length; j++) {
-
-		const points = [
-			cubes[i].position.clone(),
-			cubes[j].position.clone()
-		];
-
-		const geometry = new t.BufferGeometry().setFromPoints(points);
-
-		const material = new t.LineBasicMaterial({
-			color: 0xffffff,
-			opacity: 0.4,
-			transparent: true
-		});
-
-		const line = new t.Line(geometry, material);
-
-		world.add(line);
-		lines.push({ line, i, j });
-	}
 }
-
 	function updateWindowShape (easing = true)
 	{
 		// storing the actual offset in a proxy that we update against in the render function
