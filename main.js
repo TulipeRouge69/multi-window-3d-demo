@@ -214,6 +214,16 @@ if (cubes.length >= 2) {
 			cube.rotation.x = time * 0.5;
 			cube.rotation.y = time * 0.3;
 		}
+       if (linkLine && cubes.length >= 2) {
+
+	       const p1 = cubes[0].position;
+	       const p2 = cubes[1].position;
+
+	   linkLine.geometry.setFromPoints([
+		   p1.clone(),
+		   p2.clone()
+	]);
+}
 
 		// update lines
 		lines.forEach(l => {
