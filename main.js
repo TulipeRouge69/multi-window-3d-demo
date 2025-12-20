@@ -150,7 +150,31 @@ if (new URLSearchParams(window.location.search).get("clear")) {
 				world.add(line);
 
 				lines.push({ line, i, j });
-			}
+			}// remove old line
+if (linkLine) {
+	world.remove(linkLine);
+	linkLine.geometry.dispose();
+	linkLine.material.dispose();
+	linkLine = null;
+}
+
+// create line ONLY if we have at least 2 spheres
+if (cubes.length >= 2) {
+
+	const geometry = new t.BufferGeometry().setFromPoints([
+		cubes[0].position.clone(),
+		cubes[1].position.clone()
+	]);
+
+	const material = new t.LineBasicMaterial({
+		color: 0xffffff,
+		linewidth: 2
+	});
+
+	linkLine = new t.Line(geometry, material);
+	world.add(linkLine);
+}
+
 		}
 	}
 
