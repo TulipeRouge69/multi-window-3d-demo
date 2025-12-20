@@ -173,44 +173,62 @@ function updateNumberOfCubes ()
 
 
 	function render ()
+{
+	let t = getTime();
+
+	windowManager.update();
+
+	let falloff = .05;
+	sceneOffset.x += (sceneOffsetTarget.x - sceneOffset.x) * falloff;
+	sceneOffset.y += (sceneOffsetTarget.y - sceneOffset.y) * falloff;
+
+	world.position.x = sceneOffset.x;
+	world.position.y = sceneOffset.y;
+
+	let wins = windowManager.getWindows();
+
+	// update spheres
+	for (let i = 0; i < cubes.length; i++)
 	{
-		let t = getTime();
+		let cube = cubes[i];
+		let win = wins[i];
+		let _t = t;
 
-		windowManager.update();
-
-
-		// calculate the new position based on the delta between current offset and new offset times a falloff value (to create the nice smoothing effect)
-		let falloff = .05;
-		sceneOffset.x = sceneOffset.x + ((sceneOffsetTarget.x - sceneOffset.x) * falloff);
-		sceneOffset.y = sceneOffset.y + ((sceneOffsetTarget.y - sceneOffset.y) * falloff);
-
-		// set the world position to the offset
-		world.position.x = sceneOffset.x;
-		world.position.y = sceneOffset.y;
-
-		let wins = windowManager.getWindows();
-
-
-		// loop through all our cubes and update their positions based on current window positions
-		for (let i = 0; i < cubes.length; i++)
-		{
-			let cube = cubes[i];
-			let win = wins[i];
-			let _t = t;// + i * .2;
-
-			let posTarget = {x: win.shape.x + (win.shape.w * .5), y: win.shape.y + (win.shape.h * .5)}
-
-			cube.position.x = cube.position.x + (posTarget.x - cube.position.x) * falloff;
-			cube.position.y = cube.position.y + (posTarget.y - cube.position.y) * falloff;
-			cube.rotation.x = _t * .5;
-            cube.rotation.y = _t * .3;
-
+		let posTarget = {
+			x: win.shape.x + (win.shape.w * .5),
+			y: win.shape.y + (win.shape.h * .5)
 		};
 
-		renderer.render(scene, camera);
-		requestAnimationFrame(render);
+		cube.position.x += (posTarget.x - cube.position.x) * falloff;
+		cube.position.y += (posTarget.y - cube.position.y) * falloff;
+		cube.rotation.x = _t * .5;
+		cube.rotation.y = _t * .3;
 	}
 
+	// ✅ UPDATE LINES (ICI, AVANT RENDER)
+	lines.forEach(l => {
+		const p1 = cubes[l.i].position;
+		const p2 = cubes[l.j].position;
+
+		const arr = l.line.geometry.attributes.position.array;
+
+		arr[0] = p1.x;
+		arr[1] = p1.y;
+		arr[2] = p1.z || 0;
+
+		arr[3] = p2.x;
+		arr[4] = p2.y;
+		arr[5] = p2.z || 0;
+
+		l.line.geometry.attributes.position.needsUpdate = true;
+	});
+
+	// render AFTER all updates
+	renderer.render(scene, camera);
+
+	// request next frame LAST
+	requestAnimationFrame(render);
+}
 
 	// resize the renderer to fit the window size
 	function resize ()
