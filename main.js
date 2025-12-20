@@ -7,6 +7,7 @@ let camera, scene, renderer, world;
 let near, far;
 let pixR = window.devicePixelRatio ? window.devicePixelRatio : 1;
 let cubes = [];
+let lines = [];
 let sceneOffsetTarget = {x: 0, y: 0};
 let sceneOffset = {x: 0, y: 0};
 
@@ -118,6 +119,9 @@ else
 		})
 
 		cubes = [];
+        // remove all lines
+        lines.forEach(l => world.remove(l.line ?? l));
+        lines = [];
 
 		// add new cubes based on the current window setup
 		for (let i = 0; i < wins.length; i++)
@@ -141,6 +145,29 @@ cubes.push(sphere);
 
 		}
 	}
+// create lines between each sphere
+for (let i = 0; i < cubes.length; i++) {
+	for (let j = i + 1; j < cubes.length; j++) {
+
+		const points = [
+			cubes[i].position.clone(),
+			cubes[j].position.clone()
+		];
+
+		const geometry = new t.BufferGeometry().setFromPoints(points);
+
+		const material = new t.LineBasicMaterial({
+			color: 0xffffff,
+			opacity: 0.4,
+			transparent: true
+		});
+
+		const line = new t.Line(geometry, material);
+
+		world.add(line);
+		lines.push({ line, i, j });
+	}
+}
 
 	function updateWindowShape (easing = true)
 	{
