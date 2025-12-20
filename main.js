@@ -1,6 +1,7 @@
 import WindowManager from './WindowManager.js';
 
 let linkLine = null;
+let lines = [];
 
 const t = THREE;
 
