@@ -1,8 +1,6 @@
 import WindowManager from "./WindowManager.js";
 
-let scene, camera, renderer, world;
-let windowManager;
-
+let scene, camera, renderer, world, windowManager;
 let spheres = [];
 let lines = [];
 
@@ -10,120 +8,95 @@ init();
 animate();
 
 function init() {
+    windowManager = new WindowManager();
+    windowManager.init();
 
-	// WINDOW MANAGER
-	windowManager = new WindowManager();
-	windowManager.init();
+    scene = new THREE.Scene();
+    
+    // On utilise une caméra qui couvre l'écran interne
+    camera = new THREE.OrthographicCamera(0, window.innerWidth, 0, window.innerHeight, -1000, 1000);
+    // On inverse le Y pour correspondre aux coordonnées écran (0 en haut)
+    camera.up.set(0, -1, 0); 
 
-	// SCENE
-	scene = new THREE.Scene();
-	scene.background = new THREE.Color(0x000000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-	// CAMERA (ORTHO SIMPLE)
-	camera = new THREE.OrthographicCamera(
-		0,
-		window.innerWidth,
-		window.innerHeight,
-		0,
-		-1000,
-		1000
-	);
-	camera.position.z = 10;
+    world = new THREE.Group();
+    scene.add(world);
 
-	// RENDERER
-	renderer = new THREE.WebGLRenderer({ antialias: true });
-	renderer.setSize(window.innerWidth, window.innerHeight);
-	document.body.appendChild(renderer.domElement);
+    windowManager.setWinChangeCallback(build);
+    windowManager.setWinShapeChangeCallback(build);
 
-	// WORLD
-	world = new THREE.Group();
-	scene.add(world);
-
-	// CALLBACKS
-	windowManager.setWinChangeCallback(build);
-	windowManager.setWinShapeChangeCallback(build);
-
-	build();
-
-	window.addEventListener("resize", resize);
+    window.addEventListener("resize", resize);
+    build();
 }
 
 function build() {
+    // Nettoyage
+    spheres.forEach(s => world.remove(s));
+    lines.forEach(l => world.remove(l));
+    spheres = [];
+    lines = [];
 
-	// CLEAR
-	spheres.forEach(s => world.remove(s));
-	lines.forEach(l => world.remove(l));
-	spheres = [];
-	lines = [];
+    const wins = windowManager.getWindows();
 
-	const wins = windowManager.getWindows();
+    wins.forEach((win) => {
+        const sphere = new THREE.Mesh(
+            new THREE.SphereGeometry(30, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x00ff88, wireframe: true })
+        );
+        world.add(sphere);
+        spheres.push({ mesh: sphere, id: win.id });
+    });
 
-	// SPHERES
-	wins.forEach((win, i) => {
-
-		const sphere = new THREE.Mesh(
-			new THREE.SphereGeometry(40, 12, 8),
-			new THREE.MeshBasicMaterial({
-				color: 0xffffff,
-				wireframe: true
-			})
-		);
-
-		sphere.position.set(
-			win.shape.x + win.shape.w / 2,
-			win.shape.y + win.shape.h / 2,
-			0
-		);
-
-		world.add(sphere);
-		spheres.push(sphere);
-	});
-
-	// LINES (entre sphères)
-	for (let i = 0; i < spheres.length - 1; i++) {
-
-		const geometry = new THREE.BufferGeometry().setFromPoints([
-			spheres[i].position.clone(),
-			spheres[i + 1].position.clone()
-		]);
-
-		const line = new THREE.Line(
-			geometry,
-			new THREE.LineBasicMaterial({ color: 0xffffff })
-		);
-
-		world.add(line);
-		lines.push(line);
-	}
+    // Création des lignes
+    for (let i = 0; i < spheres.length - 1; i++) {
+        const geometry = new THREE.BufferGeometry();
+        const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff }));
+        world.add(line);
+        lines.push(line);
+    }
 }
 
 function animate() {
+    windowManager.update();
+    const wins = windowManager.getWindows();
+    const currentWin = windowManager.getWinShape();
 
-	windowManager.update();
+    // Mise à jour des positions des sphères relativement à la fenêtre actuelle
+    spheres.forEach((sObj) => {
+        const winData = wins.find(w => w.id === sObj.id);
+        if (winData) {
+            // Position absolue au centre de sa fenêtre parente
+            const absX = winData.shape.x + winData.shape.w / 2;
+            const absY = winData.shape.y + winData.shape.h / 2;
 
-	const t = performance.now() * 0.001;
+            // Position relative à NOTRE fenêtre
+            sObj.mesh.position.x = absX - currentWin.x;
+            sObj.mesh.position.y = absY - currentWin.y;
+            
+            sObj.mesh.rotation.y += 0.01;
+        }
+    });
 
-	// ROTATION
-	spheres.forEach(s => {
-		s.rotation.x = t;
-		s.rotation.y = t * 0.7;
-	});
+    // Update des lignes
+    lines.forEach((line, i) => {
+        if(spheres[i] && spheres[i+1]) {
+            line.geometry.setFromPoints([
+                spheres[i].mesh.position.clone(),
+                spheres[i + 1].mesh.position.clone()
+            ]);
+        }
+    });
 
-	// UPDATE LINES
-	for (let i = 0; i < lines.length; i++) {
-		lines[i].geometry.setFromPoints([
-			spheres[i].position,
-			spheres[i + 1].position
-		]);
-	}
-
-	renderer.render(scene, camera);
-	requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
 }
 
 function resize() {
-	camera.right = window.innerWidth;
-	camera.top = window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.right = window.innerWidth;
+    camera.bottom = window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 }
