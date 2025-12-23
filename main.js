@@ -1,15 +1,13 @@
 import WindowManager from './WindowManager.js';
 
-let linkLine = null;
-let lines = [];
-
 const t = THREE;
 
+// ===== GLOBALS =====
 let camera, scene, renderer, world;
-let pixR = window.devicePixelRatio ? window.devicePixelRatio : 1;
+let pixR = window.devicePixelRatio || 1;
 
 let cubes = [];
-let lines = [];
+let linkLine = null;
 
 let sceneOffsetTarget = { x: 0, y: 0 };
 let sceneOffset = { x: 0, y: 0 };
@@ -21,241 +19,189 @@ today = today.getTime();
 let windowManager;
 let initialized = false;
 
-// time in seconds since beginning of the day
+// ===== TIME =====
 function getTime() {
-	return (new Date().getTime() - today) / 1000.0;
+	return (Date.now() - today) / 1000;
 }
 
+// ===== CLEAR STORAGE =====
 if (new URLSearchParams(window.location.search).get("clear")) {
 	localStorage.clear();
-} else {
+}
 
-	document.addEventListener("visibilitychange", () => {
-		if (document.visibilityState !== 'hidden' && !initialized) {
-			init();
-		}
-	});
+// ===== INIT =====
+document.addEventListener("visibilitychange", () => {
+	if (document.visibilityState !== 'hidden' && !initialized) init();
+});
 
-	window.onload = () => {
-		if (document.visibilityState !== 'hidden') {
-			init();
-		}
-	};
+window.onload = () => {
+	if (document.visibilityState !== 'hidden') init();
+};
 
-	function init() {
-		initialized = true;
+function init() {
+	initialized = true;
 
-		setTimeout(() => {
-			setupScene();
-			setupWindowManager();
-			resize();
-			updateWindowShape(false);
-			render();
-			window.addEventListener('resize', resize);
-		}, 300);
+	setTimeout(() => {
+		setupScene();
+		setupWindowManager();
+		resize();
+		updateWindowShape(false);
+		render();
+		window.addEventListener('resize', resize);
+	}, 300);
+}
+
+// ===== SCENE =====
+function setupScene() {
+	camera = new t.OrthographicCamera(
+		0,
+		window.innerWidth,
+		0,
+		window.innerHeight,
+		-10000,
+		10000
+	);
+	camera.position.z = 10;
+
+	scene = new t.Scene();
+	scene.background = new t.Color(0x000000);
+	scene.add(camera);
+
+	renderer = new t.WebGLRenderer({ antialias: true });
+	renderer.setPixelRatio(pixR);
+
+	world = new t.Object3D();
+	scene.add(world);
+
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	document.body.appendChild(renderer.domElement);
+}
+
+// ===== WINDOW MANAGER =====
+function setupWindowManager() {
+	windowManager = new WindowManager();
+	windowManager.setWinShapeChangeCallback(updateWindowShape);
+	windowManager.setWinChangeCallback(updateNumberOfCubes);
+	windowManager.init({ foo: "bar" });
+
+	updateNumberOfCubes();
+}
+
+// ===== SPHERES + LINE =====
+function updateNumberOfCubes() {
+	const wins = windowManager.getWindows();
+
+	// remove spheres
+	cubes.forEach(c => world.remove(c));
+	cubes = [];
+
+	// remove line
+	if (linkLine) {
+		world.remove(linkLine);
+		linkLine.geometry.dispose();
+		linkLine.material.dispose();
+		linkLine = null;
 	}
 
-	function setupScene() {
-		// ✅ CAMERA CORRIGÉE (très important)
-		camera = new t.OrthographicCamera(
-			0,
-			window.innerWidth,
-			0,
-			window.innerHeight,
-			-10000,
-			10000
+	// create spheres
+	for (let i = 0; i < wins.length; i++) {
+		const win = wins[i];
+
+		const color = new t.Color().setHSL(i * 0.15, 1, 0.5);
+		const size = 100 + i * 40;
+
+		const sphere = new t.Mesh(
+			new t.SphereGeometry(size * 0.5, 8, 6),
+			new t.MeshBasicMaterial({
+				color,
+				wireframe: true
+			})
 		);
-		camera.position.z = 10;
 
-		scene = new t.Scene();
-		scene.background = new t.Color(0x000000);
-		scene.add(camera);
+		sphere.position.set(
+			win.shape.x + win.shape.w * 0.5,
+			win.shape.y + win.shape.h * 0.5,
+			0
+		);
 
-		renderer = new t.WebGLRenderer({ antialias: true });
-		renderer.setPixelRatio(pixR);
-
-		world = new t.Object3D();
-		scene.add(world);
-
-		renderer.domElement.id = "scene";
-		document.body.appendChild(renderer.domElement);
+		world.add(sphere);
+		cubes.push(sphere);
 	}
 
-	function setupWindowManager() {
-		windowManager = new WindowManager();
-		windowManager.setWinShapeChangeCallback(updateWindowShape);
-		windowManager.setWinChangeCallback(windowsUpdated);
+	// create ONE line between first two spheres
+	if (cubes.length >= 2) {
+		const geometry = new t.BufferGeometry().setFromPoints([
+			cubes[0].position.clone(),
+			cubes[1].position.clone()
+		]);
 
-		windowManager.init({ foo: "bar" });
-		windowsUpdated();
-	}
-
-	function windowsUpdated() {
-		updateNumberOfCubes();
-	}
-
-	function updateNumberOfCubes() {
-		let wins = windowManager.getWindows();
-
-		// remove spheres
-		cubes.forEach(c => world.remove(c));
-		cubes = [];
-
-		// remove lines
-		lines.forEach(l => world.remove(l.line));
-		lines = [];
-
-		// create spheres
-		for (let i = 0; i < wins.length; i++) {
-			let win = wins[i];
-
-			let color = new t.Color();
-			color.setHSL(i * 0.12, 1.0, 0.5);
-
-			let size = 100 + i * 50;
-			let sphere = new t.Mesh(
-				new t.SphereGeometry(size * 0.5, 8, 6),
-				new t.MeshBasicMaterial({
-					color,
-					wireframe: true
-				})
-			);
-
-			sphere.position.set(
-				win.shape.x + win.shape.w * 0.5,
-				win.shape.y + win.shape.h * 0.5,
-				0
-			);
-
-			world.add(sphere);
-			cubes.push(sphere);
-		}
-
-		// create lines between spheres
-		for (let i = 0; i < cubes.length; i++) {
-			for (let j = i + 1; j < cubes.length; j++) {
-
-				const geometry = new t.BufferGeometry().setFromPoints([
-					cubes[i].position.clone(),
-					cubes[j].position.clone()
-				]);
-
-				const material = new t.LineBasicMaterial({
-					color: 0xffffff,
-					transparent: true,
-					opacity: 0.5
-				});
-
-				const line = new t.Line(geometry, material);
-				world.add(line);
-
-				lines.push({ line, i, j });
-			}// remove old line
-if (linkLine) {
-	world.remove(linkLine);
-	linkLine.geometry.dispose();
-	linkLine.material.dispose();
-	linkLine = null;
-}
-
-// create line ONLY if we have at least 2 spheres
-if (cubes.length >= 2) {
-
-	const geometry = new t.BufferGeometry().setFromPoints([
-		cubes[0].position.clone(),
-		cubes[1].position.clone()
-	]);
-
-	const material = new t.LineBasicMaterial({
-		color: 0xffffff,
-		linewidth: 2
-	});
-
-	linkLine = new t.Line(geometry, material);
-	world.add(linkLine);
-}
-
-		}
-	}
-
-	function updateWindowShape(easing = true) {
-		sceneOffsetTarget = {
-			x: -window.screenX,
-			y: -window.screenY
-		};
-		if (!easing) sceneOffset = sceneOffsetTarget;
-	}
-
-	function render() {
-		let time = getTime();
-
-		windowManager.update();
-
-		let falloff = 0.05;
-		sceneOffset.x += (sceneOffsetTarget.x - sceneOffset.x) * falloff;
-		sceneOffset.y += (sceneOffsetTarget.y - sceneOffset.y) * falloff;
-
-		world.position.x = sceneOffset.x;
-		world.position.y = sceneOffset.y;
-
-		let wins = windowManager.getWindows();
-
-		// update spheres
-		for (let i = 0; i < cubes.length; i++) {
-			let cube = cubes[i];
-			let win = wins[i];
-
-			let targetX = win.shape.x + win.shape.w * 0.5;
-			let targetY = win.shape.y + win.shape.h * 0.5;
-
-			cube.position.x += (targetX - cube.position.x) * falloff;
-			cube.position.y += (targetY - cube.position.y) * falloff;
-
-			cube.rotation.x = time * 0.5;
-			cube.rotation.y = time * 0.3;
-		}
-       if (linkLine && cubes.length >= 2) {
-
-	       const p1 = cubes[0].position;
-	       const p2 = cubes[1].position;
-
-	   linkLine.geometry.setFromPoints([
-		   p1.clone(),
-		   p2.clone()
-	]);
-}
-
-		// update lines
-		lines.forEach(l => {
-			const p1 = cubes[l.i].position;
-			const p2 = cubes[l.j].position;
-			const arr = l.line.geometry.attributes.position.array;
-
-			arr[0] = p1.x;
-			arr[1] = p1.y;
-			arr[2] = 0;
-
-			arr[3] = p2.x;
-			arr[4] = p2.y;
-			arr[5] = 0;
-
-			l.line.geometry.attributes.position.needsUpdate = true;
+		const material = new t.LineBasicMaterial({
+			color: 0xffffff,
+			opacity: 1,
+			transparent: true,
+			depthTest: false
 		});
 
-		renderer.render(scene, camera);
-		requestAnimationFrame(render);
+		linkLine = new t.Line(geometry, material);
+		linkLine.position.z = 5;
+		world.add(linkLine);
+	}
+}
+
+// ===== WINDOW OFFSET =====
+function updateWindowShape(easing = true) {
+	sceneOffsetTarget = {
+		x: -window.screenX,
+		y: -window.screenY
+	};
+	if (!easing) sceneOffset = sceneOffsetTarget;
+}
+
+// ===== RENDER LOOP =====
+function render() {
+	const time = getTime();
+	windowManager.update();
+
+	const falloff = 0.05;
+	sceneOffset.x += (sceneOffsetTarget.x - sceneOffset.x) * falloff;
+	sceneOffset.y += (sceneOffsetTarget.y - sceneOffset.y) * falloff;
+
+	world.position.x = sceneOffset.x;
+	world.position.y = sceneOffset.y;
+
+	const wins = windowManager.getWindows();
+
+	// update spheres
+	for (let i = 0; i < cubes.length; i++) {
+		const cube = cubes[i];
+		const win = wins[i];
+
+		const tx = win.shape.x + win.shape.w * 0.5;
+		const ty = win.shape.y + win.shape.h * 0.5;
+
+		cube.position.x += (tx - cube.position.x) * falloff;
+		cube.position.y += (ty - cube.position.y) * falloff;
+
+		cube.rotation.x = time * 0.4;
+		cube.rotation.y = time * 0.3;
 	}
 
-	function resize() {
-		let width = window.innerWidth;
-		let height = window.innerHeight;
-
-		camera.left = 0;
-		camera.right = width;
-		camera.bottom = 0;
-		camera.top = height;
-		camera.updateProjectionMatrix();
-
-		renderer.setSize(width, height);
+	// update line
+	if (linkLine && cubes.length >= 2) {
+		linkLine.geometry.setFromPoints([
+			cubes[0].position.clone(),
+			cubes[1].position.clone()
+		]);
 	}
+
+	renderer.render(scene, camera);
+	requestAnimationFrame(render);
+}
+
+// ===== RESIZE =====
+function resize() {
+	camera.right = window.innerWidth;
+	camera.top = window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth, window.innerHeight);
 }
