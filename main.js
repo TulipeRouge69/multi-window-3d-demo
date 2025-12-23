@@ -1,40 +1,73 @@
 import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
-import WindowManager from './WindowManager.js';
 
-let camera, scene, renderer, world;
+let scene, camera, renderer;
+
+init();
+animate();
 
 function init() {
+	// SCENE
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color(0x000000);
 
+	// CAMERA (orthographique, simple)
 	camera = new THREE.OrthographicCamera(
-		0, window.innerWidth,
-		window.innerHeight, 0,
-		-1000, 1000
+		0,
+		window.innerWidth,
+		window.innerHeight,
+		0,
+		-1000,
+		1000
 	);
 	camera.position.z = 10;
 
+	// RENDERER
 	renderer = new THREE.WebGLRenderer({ antialias: true });
 	renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(renderer.domElement);
 
-	world = new THREE.Object3D();
-	scene.add(world);
-
-	const sphere = new THREE.Mesh(
-		new THREE.SphereGeometry(80, 8, 6),
+	// ===== SPHERE 1 =====
+	const sphere1 = new THREE.Mesh(
+		new THREE.SphereGeometry(60, 8, 6),
 		new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true })
 	);
+	sphere1.position.set(300, 300, 0);
+	scene.add(sphere1);
 
-	sphere.position.set(300, 300, 0);
-	world.add(sphere);
+	// ===== SPHERE 2 =====
+	const sphere2 = new THREE.Mesh(
+		new THREE.SphereGeometry(60, 8, 6),
+		new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true })
+	);
+	sphere2.position.set(600, 500, 0);
+	scene.add(sphere2);
 
-	render();
+	// ===== LINE ENTRE LES DEUX =====
+	const geometry = new THREE.BufferGeometry().setFromPoints([
+		sphere1.position.clone(),
+		sphere2.position.clone()
+	]);
+
+	const material = new THREE.LineBasicMaterial({
+		color: 0xffffff,
+		linewidth: 2
+	});
+
+	const line = new THREE.Line(geometry, material);
+	scene.add(line);
+
+	// RESIZE
+	window.addEventListener('resize', onResize);
 }
 
-function render() {
+function animate() {
 	renderer.render(scene, camera);
-	requestAnimationFrame(render);
+	requestAnimationFrame(animate);
 }
 
-init();
+function onResize() {
+	camera.right = window.innerWidth;
+	camera.top = window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+}
