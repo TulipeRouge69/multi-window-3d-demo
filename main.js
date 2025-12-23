@@ -4,6 +4,17 @@ let scene, camera, renderer, world, windowManager;
 let spheres = [];
 let lines = [];
 
+// Liste de couleurs stables (tu peux en ajouter autant que tu veux)
+const COLORS = [
+    0xff0000, // 1: Rouge
+    0x0088ff, // 2: Bleu
+    0x00ff88, // 3: Vert
+    0xffcc00, // 4: Jaune/Or
+    0xff00ff, // 5: Rose
+    0x00ffff, // 6: Cyan
+    0xffffff  // 7: Blanc
+];
+
 init();
 animate();
 
@@ -33,30 +44,29 @@ function init() {
 }
 
 function build() {
-    // Nettoyage complet
     spheres.forEach(s => world.remove(s.mesh));
     lines.forEach(l => world.remove(l));
     spheres = [];
     lines = [];
 
     const wins = windowManager.getWindows();
-    const myId = windowManager.getThisWindowID();
 
-    // Création des sphères (Taille 80)
-    wins.forEach((win) => {
-        const color = (win.id === myId) ? 0xffcc00 : 0x00ff88;
+    wins.forEach((win, index) => {
+        // On choisit la couleur selon l'index (avec % pour boucler si + de 7 fenêtres)
+        const colorIndex = index % COLORS.length;
+        const color = COLORS[colorIndex];
+        
         const sphere = new THREE.Mesh(
             new THREE.SphereGeometry(80, 20, 20), 
             new THREE.MeshBasicMaterial({ color: color, wireframe: true })
         );
+        
         world.add(sphere);
         spheres.push({ mesh: sphere, id: win.id });
     });
 
-    // Création des lignes
     for (let i = 0; i < spheres.length - 1; i++) {
         const geometry = new THREE.BufferGeometry();
-        // On initialise avec des points à zéro
         geometry.setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
         const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff }));
         world.add(line);
@@ -69,7 +79,6 @@ function animate() {
     const wins = windowManager.getWindows();
     const currentWin = windowManager.getWinShape();
 
-    // 1. D'abord, on place toutes les sphères
     spheres.forEach((sObj) => {
         const winData = wins.find(w => w.id === sObj.id);
         if (winData) {
@@ -83,20 +92,17 @@ function animate() {
         }
     });
 
-    // 2. Ensuite, on relie les lignes aux nouvelles positions des sphères
     lines.forEach((line, i) => {
         if(spheres[i] && spheres[i+1]) {
             line.geometry.setFromPoints([
                 spheres[i].mesh.position,
                 spheres[i + 1].mesh.position
             ]);
-            line.geometry.attributes.position.needsUpdate = true; // Indispensable pour voir le changement !
+            line.geometry.attributes.position.needsUpdate = true;
         }
     });
 
-    // 3. EN DERNIER, on dessine la scène (évite le glitch en haut à gauche)
     renderer.render(scene, camera);
-    
     requestAnimationFrame(animate);
 }
 
