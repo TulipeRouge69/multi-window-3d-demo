@@ -11,15 +11,12 @@ function init() {
     windowManager = new WindowManager();
     windowManager.init();
 
-    // SCENE
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000); // Fond noir bien opaque pour éviter les traînées
+    scene.background = new THREE.Color(0x000000); 
 
-    // CAMERA
     camera = new THREE.OrthographicCamera(0, window.innerWidth, 0, window.innerHeight, -1000, 1000);
     camera.up.set(0, -1, 0); 
 
-    // RENDERER
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -36,7 +33,7 @@ function init() {
 }
 
 function build() {
-    // NETTOYAGE : Supprimer les anciens objets pour éviter les doublons
+    // Nettoyage complet
     spheres.forEach(s => world.remove(s.mesh));
     lines.forEach(l => world.remove(l));
     spheres = [];
@@ -45,24 +42,23 @@ function build() {
     const wins = windowManager.getWindows();
     const myId = windowManager.getThisWindowID();
 
+    // Création des sphères (Taille 80)
     wins.forEach((win) => {
-        // COULEUR : Jaune/Or pour "Moi", Vert pour les "Autres"
         const color = (win.id === myId) ? 0xffcc00 : 0x00ff88;
-        
-        // TAILLE : Augmentée à 80
         const sphere = new THREE.Mesh(
             new THREE.SphereGeometry(80, 20, 20), 
             new THREE.MeshBasicMaterial({ color: color, wireframe: true })
         );
-        
         world.add(sphere);
         spheres.push({ mesh: sphere, id: win.id });
     });
 
-    // Création des lignes entre les sphères
+    // Création des lignes
     for (let i = 0; i < spheres.length - 1; i++) {
         const geometry = new THREE.BufferGeometry();
-        const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }));
+        // On initialise avec des points à zéro
+        geometry.setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+        const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff }));
         world.add(line);
         lines.push(line);
     }
@@ -73,13 +69,10 @@ function animate() {
     const wins = windowManager.getWindows();
     const currentWin = windowManager.getWinShape();
 
-    // On efface bien l'écran précédent
-    renderer.render(scene, camera);
-
+    // 1. D'abord, on place toutes les sphères
     spheres.forEach((sObj) => {
         const winData = wins.find(w => w.id === sObj.id);
         if (winData) {
-            // Calcul de la position globale -> locale
             const absX = winData.shape.x + winData.shape.w / 2;
             const absY = winData.shape.y + winData.shape.h / 2;
 
@@ -87,20 +80,23 @@ function animate() {
             sObj.mesh.position.y = absY - currentWin.y;
             
             sObj.mesh.rotation.y += 0.01;
-            sObj.mesh.rotation.x += 0.005;
         }
     });
 
-    // Mise à jour des lignes
+    // 2. Ensuite, on relie les lignes aux nouvelles positions des sphères
     lines.forEach((line, i) => {
         if(spheres[i] && spheres[i+1]) {
             line.geometry.setFromPoints([
-                spheres[i].mesh.position.clone(),
-                spheres[i + 1].mesh.position.clone()
+                spheres[i].mesh.position,
+                spheres[i + 1].mesh.position
             ]);
+            line.geometry.attributes.position.needsUpdate = true; // Indispensable pour voir le changement !
         }
     });
 
+    // 3. EN DERNIER, on dessine la scène (évite le glitch en haut à gauche)
+    renderer.render(scene, camera);
+    
     requestAnimationFrame(animate);
 }
 
