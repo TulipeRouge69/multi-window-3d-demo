@@ -2,18 +2,9 @@ import WindowManager from "./WindowManager.js";
 
 let scene, camera, renderer, world, windowManager;
 let spheres = [];
-let lines = [];
+let curves = []; // On remplace les lignes par des courbes
 
-// Liste de couleurs stables (tu peux en ajouter autant que tu veux)
-const COLORS = [
-    0xff0000, // 1: Rouge
-    0x0088ff, // 2: Bleu
-    0x00ff88, // 3: Vert
-    0xffcc00, // 4: Jaune/Or
-    0xff00ff, // 5: Rose
-    0x00ffff, // 6: Cyan
-    0xffffff  // 7: Blanc
-];
+const COLORS = [0xff0000, 0x0088ff, 0x00ff88, 0xffcc00, 0xff00ff, 0x00ffff, 0xffffff];
 
 init();
 animate();
@@ -45,32 +36,30 @@ function init() {
 
 function build() {
     spheres.forEach(s => world.remove(s.mesh));
-    lines.forEach(l => world.remove(l));
+    curves.forEach(c => world.remove(c.line));
     spheres = [];
-    lines = [];
+    curves = [];
 
     const wins = windowManager.getWindows();
 
     wins.forEach((win, index) => {
-        // On choisit la couleur selon l'index (avec % pour boucler si + de 7 fenêtres)
-        const colorIndex = index % COLORS.length;
-        const color = COLORS[colorIndex];
-        
+        const color = COLORS[index % COLORS.length];
         const sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(80, 20, 20), 
-            new THREE.MeshBasicMaterial({ color: color, wireframe: true })
+            new THREE.SphereGeometry(80, 25, 25), 
+            new THREE.MeshBasicMaterial({ color: color, wireframe: true, transparent: true, opacity: 0.8 })
         );
-        
         world.add(sphere);
         spheres.push({ mesh: sphere, id: win.id });
     });
 
+    // Création des liaisons organiques (Courbes)
     for (let i = 0; i < spheres.length - 1; i++) {
         const geometry = new THREE.BufferGeometry();
-        geometry.setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-        const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff }));
+        const material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4 });
+        const line = new THREE.Line(geometry, material);
+        
         world.add(line);
-        lines.push(line);
+        curves.push({ line: line, indexA: i, indexB: i + 1 });
     }
 }
 
@@ -78,6 +67,7 @@ function animate() {
     windowManager.update();
     const wins = windowManager.getWindows();
     const currentWin = windowManager.getWinShape();
+    const time = performance.now() * 0.0005; // Temps pour l'animation organique
 
     spheres.forEach((sObj) => {
         const winData = wins.find(w => w.id === sObj.id);
@@ -88,18 +78,28 @@ function animate() {
             sObj.mesh.position.x = absX - currentWin.x;
             sObj.mesh.position.y = absY - currentWin.y;
             
-            sObj.mesh.rotation.y += 0.01;
+            // ROTATION PLUS LENTE (0.005 au lieu de 0.01)
+            sObj.mesh.rotation.y += 0.005;
+            sObj.mesh.rotation.x += 0.002;
         }
     });
 
-    lines.forEach((line, i) => {
-        if(spheres[i] && spheres[i+1]) {
-            line.geometry.setFromPoints([
-                spheres[i].mesh.position,
-                spheres[i + 1].mesh.position
-            ]);
-            line.geometry.attributes.position.needsUpdate = true;
-        }
+    // MISE À JOUR DES LIAISONS ORGANIQUES
+    curves.forEach((c) => {
+        const p1 = spheres[c.indexA].mesh.position;
+        const p2 = spheres[c.indexB].mesh.position;
+
+        // On crée un point de contrôle au milieu qui bouge avec le temps pour l'effet "organique"
+        const midX = (p1.x + p2.x) / 2 + Math.sin(time + c.indexA) * 50;
+        const midY = (p1.y + p2.y) / 2 + Math.cos(time + c.indexA) * 50;
+        const mid = new THREE.Vector3(midX, midY, 0);
+
+        // Création d'une courbe quadratique fluide
+        const curve = new THREE.QuadraticBezierCurve3(p1.clone(), mid, p2.clone());
+        const points = curve.getPoints(20); // 20 segments pour la fluidité
+        
+        c.line.geometry.setFromPoints(points);
+        c.line.geometry.attributes.position.needsUpdate = true;
     });
 
     renderer.render(scene, camera);
