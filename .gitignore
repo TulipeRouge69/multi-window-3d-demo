@@ -1,8 +1,16 @@
-node_modules
-build
-deploy
-screens*
+# Dependances
+node_modules/
+
+# Build
+build/
+deploy/
+
+# Logs & OS
 npm-debug.log
-*.png
-.env
 .DS_Store
+Thumbs.db
+
+# Media & Env
+*.png
+screens*
+.env
